@@ -6,7 +6,7 @@ const float wheelRadius = 0.0635;   // hard-coded; sambed
 const float Ldistance   = 0.22241;
 int in[6] = {2, 3, 4, 5, 6, 7};
 int en[3] = {8, 9, 10};
-int maxSpeed = x; //To be hard-coded. 
+int maxSpeed = 10.0; //To be hard-coded. 
 
 void computeWheelSpeeds(float Vx, float Vy, float omega, float L, float r, float w[3]) {
   for (int i = 0; i < 3; i++) {
@@ -32,21 +32,25 @@ void loop() {
   float angle  = 45.0;    // deg [to be taken input]
   float omega  = 0.0;     // rad/s [to be taken input]
 
-  float wheelSpeeds[3];
+  float wheelSpeed[3];
   computeFromAngle(speed, angle, omega, Ldistance, wheelRadius, wheelSpeeds);
   int pwm[3];
+  
   for(int i=0; i<3; i++){
-    int dir = (wheelSpeed[i] > 0) ? 1 : -1
-    pwm[i] = (wheelSpeed[i]/maxSpeed)*255; //basic line of code to find pwm value according to the speed needed. 
+    int dir = (wheelSpeed[i] > 0) ? 1 : -1;
+    float magnitude = fabs(wheelSpeed[i]);
+    pwm[i] = (int)(magnitude/maxSpeed)*255); //basic line of code to find pwm value according to the speed needed.
+    if (pwm[i]>255) pwm[i]=255; // default incase of errors
+    
     if(dir>0){
       digitalWrite(in[i], LOW); //assuming this configures to clockwise
       digitalWrite(in[i+1], HIGH);
-      anaogWrite(en[i], pwm[i];
+      analogWrite(en[i], pwm[i]);
     }
     else {
       digitalWrite(in[i+1], LOW); //assuming this configures to anti-clockwise
       digitalWrite(in[i], HIGH);
-      anaogWrite(en[i], pwm[i];
+      analogWrite(en[i], pwm[i]);
     }
   }
   
