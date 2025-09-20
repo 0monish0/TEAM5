@@ -58,8 +58,15 @@ upper_red2 = np.array([180, 255, 255])
 mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
 mask2 = cv2.inRange(hsv,lower_red2,upper_red2)
 mask = mask1 | mask2
-
-results = cv2.bitwise_and(img,img,mask=mask)
+mask = cv2.blur(mask,(5,5)) #averaging blur
+cv2.imshow('mask',mask)
+gmask = cv2.GaussianBlur(mask,(5,5),0) #most common blur
+cv2.imshow('gmask',gmask)
+mmask = cv2.medianBlur(mask,5) #good for salt and pepper noise
+cv2.imshow('mmask',mmask)
+bmask = cv2.bilateralFilter(mask,9,75,75) #best for edge preserving
+cv2.imshow('bmask',bmask)
+results = cv2.bitwise_and(img,img,mask=bmask)
 cv2.imshow('result',results)
 cv2.imshow('original',img)
 cv2.waitKey(0)
