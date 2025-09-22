@@ -1,72 +1,49 @@
 import cv2
 import numpy as np
+import glob
 
-img = cv2.imread('TEST\eye.png')
+# Chessboard dimensions (number of inner corners)
+chessboard_size = (9, 6)
 
-# crop=img[500:700,0:300]
+# Prepare object points: (0,0,0), (1,0,0), ..., (8,5,0)
+objp = np.zeros((chessboard_size[0]*chessboard_size[1], 3), np.float32)
+objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2)
 
-# print(img.shape)
-# print(img.dtype)
-# print(type(img))
-# print(img)
-# gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-# ran = cv2.cvtColor(crop,cv2.COLOR_BGR2HSV)
+# Arrays to store object points and image points
+objpoints = []  # 3D points in real world
+imgpoints = []  # 2D points in image plane
 
-# bla_img = np.zeros((500,500,1),dtype=np.uint8)
-# co_img = np.zeros((500,500,3),dtype=np.uint8)
-# cv2.rectangle(bla_img,(125,125),(375,375),(255),-1 )
-# cv2.circle(bla_img,(250,250),100,(0),2)
-# cv2.circle(co_img,(250,250),100,(1,255,225),4)
-# cv2.line(co_img,(250,100),(250,400),(255,125,125),2)
-# cv2.line(bla_img,(250,100),(250,400),(100),2)
-# cv2.putText(co_img,"KAMI",(125,125),cv2.FONT_HERSHEY_SIMPLEX,0.5,(125,125,255),2)
+# Load calibration images
+images = glob.glob('calib_images/*.jpg')  # change extension if needed
 
-# roi = img[0:300,0:300]
-# img[0:300,0:300]= [0,0,0]
-# flip_hori=cv2.flip(img,1)
-# flip_vert=cv2.flip(img,0)
-# cv2.imshow('hori',flip_hori)
-# cv2.imshow('vert',flip_vert)
-# resize = cv2.resize(img,None,fx=0.5,fy=0.5,interpolation=cv2.INTER_CUBIC)
-# cv2.imshow('resize',resize)
-# cv2.imshow('color',co_img)
-# cv2.imshow('black',bla_img)
+for fname in images:
+    img = cv2.imread(fname)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-# print(bla_img)
-# print(bla_img.shape)
-# print(bla_img.dtype)
+    # Find chessboard corners
+    ret, corners = cv2.findChessboardCorners(gray, chessboard_size, None)
 
+    if ret:
+        objpoints.append(objp)
+        # Refine corner locations
+        corners2 = cv2.cornerSubPix(gray, corners, (11,11), (-1,-1),
+                                    criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001))
+        imgpoints.append(corners2)
 
-# cv2.imshow('image',img)
-# cv2.imshow('crop',crop)
-# cv2.imshow('gray',gray)
-# cv2.imshow('ran',ran)
-# (h,w) = img.shape[:2]
-# center = (w/2,h/2)
-# M = cv2.getRotationMatrix2D(center,30,1.0)
-# rotateed = cv2.warpAffine(img,M,(w,h))
-# cv2.imshow('rotate',rotateed)
+        # Draw and display corners
+        cv2.drawChessboardCorners(img, chessboard_size, corners2, ret)
+        cv2.imshow('Corners', img)
+        cv2.waitKey(100)
 
-hsv = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
-#  Define red color range (Hue values wrap around 0–180 in OpenCV)
-lower_red1 = np.array([0, 120, 70])
-upper_red1 = np.array([10, 255, 255])
+cv2.destroyAllWindows()
 
-lower_red2 = np.array([170, 120, 70])
-upper_red2 = np.array([180, 255, 255])
+# Calibrate camera
+ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
 
-mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
-mask2 = cv2.inRange(hsv,lower_red2,upper_red2)
-mask = mask1 | mask2
-mask = cv2.blur(mask,(5,5)) #averaging blur
-cv2.imshow('mask',mask)
-gmask = cv2.GaussianBlur(mask,(5,5),0) #most common blur
-cv2.imshow('gmask',gmask)
-mmask = cv2.medianBlur(mask,5) #good for salt and pepper noise
-cv2.imshow('mmask',mmask)
-bmask = cv2.bilateralFilter(mask,9,75,75) #best for edge preserving
-cv2.imshow('bmask',bmask)
-results = cv2.bitwise_and(img,img,mask=bmask)
-cv2.imshow('result',results)
-cv2.imshow('original',img)
-cv2.waitKey(0)
+print("Camera matrix (intrinsic parameters):")
+print(mtx)
+print("\nDistortion coefficients:")
+print(dist)
+
+# Save calibration results for later use
+np.savez("camera_calib.npz", mtx=mtx, dist=dist, rvecs=rvecs, tvecs=tvecs)
