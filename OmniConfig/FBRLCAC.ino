@@ -1,4 +1,4 @@
-// Motor ORANGE: A (L298N #1)
+// Motor ORANGE: A (L298N #1); let less rpm motor be A
 int in1 = 8;
 int in2 = 10;
 int enA = 9;
@@ -34,7 +34,7 @@ void movement(int dir) {
     case 1: 
         digitalWrite(in1, HIGH);
         digitalWrite(in2, LOW);
-        analogWrite(enA, 255);
+        analogWrite(enA, 255*(23/25));
 
         digitalWrite(in3, LOW);
         digitalWrite(in4, LOW);
@@ -48,7 +48,7 @@ void movement(int dir) {
     case 2: 
         digitalWrite(in1, LOW);
         digitalWrite(in2, HIGH);
-        analogWrite(enA, 255);
+        analogWrite(enA, 255*(23/25));
 
         digitalWrite(in3, LOW);
         digitalWrite(in4, LOW);
@@ -62,7 +62,7 @@ void movement(int dir) {
     case 3: //to code
         digitalWrite(in1, LOW);
         digitalWrite(in2, HIGH);
-        analogWrite(enA, 255);
+        analogWrite(enA, 255*(23/25));
 
         digitalWrite(in3, LOW);
         digitalWrite(in4, LOW);
@@ -76,7 +76,7 @@ void movement(int dir) {
     case 4: //to code
         digitalWrite(in1, LOW);
         digitalWrite(in2, HIGH);
-        analogWrite(enA, 255);
+        analogWrite(enA, 255*(23/25));
 
         digitalWrite(in3, LOW);
         digitalWrite(in4, LOW);
@@ -90,7 +90,7 @@ void movement(int dir) {
     case 5:
     	  digitalWrite(in1, LOW);
         digitalWrite(in2, HIGH);
-        analogWrite(enA, 255);
+        analogWrite(enA, 255*(23/25));
 
         digitalWrite(in3, LOW);
         digitalWrite(in4, HIGH);
@@ -102,9 +102,9 @@ void movement(int dir) {
 		break;
 
     case 6:
-    	  digitalWrite(in1, HIGH);
+    	digitalWrite(in1, HIGH);
         digitalWrite(in2, LOW);
-        analogWrite(enA, 255);
+        analogWrite(enA, 255*(23/25));
 
         digitalWrite(in3, HIGH);
         digitalWrite(in4, LOW);
@@ -114,3 +114,5 @@ void movement(int dir) {
         digitalWrite(in6, LOW);
         analogWrite(enC, 255);
 }
+//one with low rpm; send pwm* 230.0/250.0 into that motor. 
+//see the speed and decide respective pwm. 
