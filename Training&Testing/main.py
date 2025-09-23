@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import time
 from ultralytics import YOLO
+from collections import deque
 
 # Load YOLO model
 model = YOLO("Training&Testing/best.pt")
@@ -13,6 +14,12 @@ cap = cv2.VideoCapture(video_url)
 if not cap.isOpened():
     print("Error: Could not open video stream")
     exit()
+
+# Moving average history
+history_len = 5  # number of frames to average
+cx_history = deque(maxlen=history_len)
+cy_history = deque(maxlen=history_len)
+area_history = deque(maxlen=history_len)
 
 def detect_red_circles(frame, x1, y1, x2, y2):
     """Detect all red circles inside YOLO box, return largest circle center+area"""
@@ -56,7 +63,6 @@ def detect_red_circles(frame, x1, y1, x2, y2):
         # Draw every red circle
         cv2.circle(frame, (cx_abs, cy_abs), radius, (0, 255, 0), 2)
 
-        # Keep track of largest one
         if area > largest_area:
             largest_area = area
             largest_circle = (cx_abs, cy_abs, radius)
@@ -97,6 +103,10 @@ while True:
             if label_name == "BOX":
                 x1, y1, x2, y2 = map(int, box)
 
+                # Clamp ROI coords (avoid empty slices)
+                x1, y1 = max(0, x1), max(0, y1)
+                x2, y2 = min(frame_w, x2), min(frame_h, y2)
+
                 # Draw YOLO box
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
                 cv2.putText(frame, "BOX", (x1, y1 - 10),
@@ -106,35 +116,44 @@ while True:
                 cx_red, cy_red, area = detect_red_circles(frame, x1, y1, x2, y2)
 
                 if cx_red is not None:
-                    tolerance = 50
-                    if cx_red < frame_center_x - tolerance:
+                    # Store in history
+                    cx_history.append(cx_red)
+                    cy_history.append(cy_red)
+                    area_history.append(area)
+
+                    # Compute smoothed values
+                    cx_smoothed = int(np.mean(cx_history))
+                    cy_smoothed = int(np.mean(cy_history))
+                    area_smoothed = np.mean(area_history)
+
+                    tolerance = frame_w // 10  # ~10% width
+                    if cx_smoothed < frame_center_x - tolerance:
                         move_instruction = "MOVE LEFT"
-                    elif cx_red > frame_center_x + tolerance:
+                    elif cx_smoothed > frame_center_x + tolerance:
                         move_instruction = "MOVE RIGHT"
                     else:
                         move_instruction = "FORWARD"
 
-                    if area > 5000:  # too close
+                    if area_smoothed > 5000:  # too close
                         move_instruction = "STOP"
 
-                    largest_area_logged = area
+                    largest_area_logged = area_smoothed
 
     # Show movement instruction
     cv2.putText(frame, move_instruction, (30, 40),
                 cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 0), 3)
 
-    # FPS calculation
+    # FPS calculation (smoothed)
     curr_time = time.time()
     fps = 1 / (curr_time - prev_time)
     prev_time = curr_time
     cv2.putText(frame, f"FPS: {int(fps)}", (30, 80),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
 
-    # Log largest area if detected
     if largest_area_logged is not None:
-        print(f"Red circle area: {largest_area_logged}")
+        print(f"Red circle area (smoothed): {int(largest_area_logged)}")
 
-    cv2.imshow("YOLOv11 + Red Circle Detection", frame)
+    cv2.imshow("YOLOv11 + Red Circle Detection (Smoothed)", frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
