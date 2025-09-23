@@ -2,9 +2,11 @@ import cv2
 import numpy as np
 import time
 from ultralytics import YOLO
-from collections import deque, Counter
+from collections import deque
 
+# -------------------
 # Load YOLO model
+# -------------------
 model = YOLO("Training&Testing/best.pt")
 
 # Video URL
@@ -15,12 +17,19 @@ if not cap.isOpened():
     print("Error: Could not open video stream")
     exit()
 
-# Moving average history
-history_len = 5  # number of frames to average
+# -------------------
+# Parameters
+# -------------------
+history_len = 5          # smoothing window
+Kp = 0.005               # proportional gain (tune this value)
+base_speed = 50          # forward bias speed
+deadband = 10            # pixel dead zone
+stop_area_threshold = 5000  # too close → stop
+
+# History buffers for smoothing
 cx_history = deque(maxlen=history_len)
 cy_history = deque(maxlen=history_len)
 area_history = deque(maxlen=history_len)
-instruction_history = deque(maxlen=history_len)
 
 def detect_red_circles(frame, x1, y1, x2, y2):
     """Detect red circles inside YOLO box, return best circle by area+center distance scoring"""
@@ -67,7 +76,7 @@ def detect_red_circles(frame, x1, y1, x2, y2):
 
         # Compute score = area - penalty * distance
         dist = np.hypot(cx_abs - box_cx, cy_abs - box_cy)
-        score = area - 2.0 * dist  # tune weight (2.0) as needed
+        score = area - 2.0 * dist  # weight factor 2.0 can be tuned
 
         if score > best_score:
             best_score = score
@@ -133,29 +142,27 @@ while True:
                     cy_smoothed = int(np.mean(cy_history))
                     area_smoothed = np.mean(area_history)
 
-                    # Movement logic
-                    tolerance = frame_w // 10
-                    if cx_smoothed < frame_center_x - tolerance:
-                        move_instruction = "MOVE LEFT"
-                    elif cx_smoothed > frame_center_x + tolerance:
-                        move_instruction = "MOVE RIGHT"
-                    else:
-                        move_instruction = "FORWARD"
+                    # --- Proportional control instead of discrete steps ---
+                    error_x = cx_smoothed - frame_center_x
+                    if abs(error_x) < deadband:
+                        error_x = 0
 
-                    if area_smoothed > 5000:  # too close
+                    turn = Kp * error_x
+                    left_speed  = base_speed - turn
+                    right_speed = base_speed + turn
+
+                    if area_smoothed > stop_area_threshold:
                         move_instruction = "STOP"
+                        left_speed = 0
+                        right_speed = 0
+                    else:
+                        move_instruction = f"SPEED {left_speed:.2f},{right_speed:.2f}"
 
                     largest_area_logged = area_smoothed
 
-    # Smooth instruction output
-    instruction_history.append(move_instruction)
-    if instruction_history:
-        # Pick most frequent instruction in history
-        move_instruction = Counter(instruction_history).most_common(1)[0][0]
-
     # Show movement instruction
     cv2.putText(frame, move_instruction, (30, 40),
-                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 0), 3)
+                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 3)
 
     # FPS calculation
     curr_time = time.time()
@@ -167,7 +174,7 @@ while True:
     if largest_area_logged is not None:
         print(f"Red circle area (smoothed): {int(largest_area_logged)}")
 
-    cv2.imshow("YOLOv11 + Red Circle Detection (Stable)", frame)
+    cv2.imshow("YOLOv11 + Red Circle Detection (Stable + Proportional)", frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
