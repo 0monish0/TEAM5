@@ -52,87 +52,87 @@ void setup() {
 //final 
 void loop() {
   switch (dir){
-    case 1: 
+    case 1: //forward
         digitalWrite(in1[0], HIGH);
         digitalWrite(in2[0], LOW);
-        analogWrite(en[0], 255);
+        analogWrite(en[0], 255); //CLOCKWISE
 
         digitalWrite(in1[1], LOW);
         digitalWrite(in2[1], LOW);
-        analogWrite(en[1], 0);
-
-        digitalWrite(in1[2], HIGH);
-        digitalWrite(in2[2], LOW);
-        analogWrite(en[2], 255);
-		break;
-    
-    case 2: 
-        digitalWrite(in1[0], LOW);
-        digitalWrite(in2[0], HIGH);
-        analogWrite(en[0], 255);
-
-        digitalWrite(in1[1], LOW);
-        digitalWrite(in2[1], LOW);
-        analogWrite(en[1], 0);
+        analogWrite(en[1], 0); //head motor
 
         digitalWrite(in1[2], LOW);
         digitalWrite(in2[2], HIGH);
-        analogWrite(en[2], 255);
+        analogWrite(en[2], 255); //ANTICLOCK
 		break;
     
-    case 3: //to code
-        digitalWrite(in1, LOW);
-        digitalWrite(in2, HIGH);
-        analogWrite(enA, 255*(23/25));
-
-        digitalWrite(in3, LOW);
-        digitalWrite(in4, LOW);
-        analogWrite(enB, 0);
-
-        digitalWrite(in5, LOW);
-        digitalWrite(in6, HIGH);
-        analogWrite(enC, 255);
-		break;
-    
-    case 4: //to code
-        digitalWrite(in1, LOW);
-        digitalWrite(in2, HIGH);
-        analogWrite(enA, 255*(23/25));
-
-        digitalWrite(in3, LOW);
-        digitalWrite(in4, LOW);
-        analogWrite(enB, 0);
-
-        digitalWrite(in5, LOW);
-        digitalWrite(in6, HIGH);
-        analogWrite(enC, 255);
-		break;
-    
-    case 5:
-    	  digitalWrite(in1[0], LOW);
+    case 2: //backward
+        digitalWrite(in1[0], LOW);
         digitalWrite(in2[0], HIGH);
+        analogWrite(en[0], 255); //ANTICLOCK
+
+        digitalWrite(in1[1], LOW);
+        digitalWrite(in2[1], LOW);
+        analogWrite(en[1], 0); //head motor
+
+        digitalWrite(in1[2], HIGH);
+        digitalWrite(in2[2], LOW);
+        analogWrite(en[2], 255); //CLOCK
+		break;
+    
+    case 3: //right
+        digitalWrite(in1, HGIH);
+        digitalWrite(in2, LOW);
+        analogWrite(enA, 255);
+
+        digitalWrite(in3, HIGH);
+        digitalWrite(in4, LOW);
+        analogWrite(enB, 255);
+
+        digitalWrite(in5, HIGH);
+        digitalWrite(in6, LOW);
+        analogWrite(enC, 255);
+		break;
+    
+    case 4: //left
+        digitalWrite(in1, LOW);
+        digitalWrite(in2, HIGH);
+        analogWrite(enA, 255);
+
+        digitalWrite(in3, LOW);
+        digitalWrite(in4, HIGH);
+        analogWrite(enB, 255);
+
+        digitalWrite(in5, LOW);
+        digitalWrite(in6, HIGH);
+        analogWrite(enC, 255);
+		break;
+    
+    case 5: //clocckwise
+    	digitalWrite(in1[0], HIGH);
+        digitalWrite(in2[0], LOW);
         analogWrite(en[0], 255);
 
         digitalWrite(in1[1], LOW);
         digitalWrite(in2[1], HIGH);
         analogWrite(en[1], 0);
 
-        digitalWrite(in1[2], LOW);
-        digitalWrite(in2[2], HIGH);
+        digitalWrite(in1[2], HIGH);
+        digitalWrite(in2[2], LOW);
         analogWrite(en[2], 255);
 		break;
 
     case 6:
-    	digitalWrite(in1[0], HIGH);
-        digitalWrite(in2[0], LOW);
+    	digitalWrite(in1[0], LOW);
+        digitalWrite(in2[0], HIGH);
         analogWrite(en[0], 255);
 
         digitalWrite(in1[1], HIGH);
         digitalWrite(in2[1], LOW);
         analogWrite(en[1], 0);
 
-        digitalWrite(in1[2], HIGH);
-        digitalWrite(in2[2], LOW);
+        digitalWrite(in1[2], LOW);
+        digitalWrite(in2[2], HIGH);
         analogWrite(en[2], 255);
 }
 
