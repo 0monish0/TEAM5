@@ -1,41 +1,46 @@
-// Motor driver pins
-int in1[3] = {2, 4, 6};  // IN1 for motor1, motor2, motor3
-int in2[3] = {3, 5, 7};  // IN2
-int en[3]  = {9, 10, 11}; // PWM pins
-int encA[3] = {18, 19, 20};
-int encB[3] = {22, 23, 24};
+#include <Arduino.h>
+
+// === Motor driver pins ===
+int in1[3] = {14, 27, 26};   // IN1 for motor1, motor2, motor3 (choose valid ESP32 GPIOs)
+int in2[3] = {25, 33, 32};   // IN2
+int en[3]  = {12, 13, 15};   // PWM pins
+int encA[3] = {4, 16, 17};
+int encB[3] = {5, 18, 19};
 
 volatile long encoderCount[3] = {0,0,0}; // updated in ISRs
-float targetRPM[3] = {100, 100, 100}; // desired RPM for each motor
-int pwmValue[3] = {150,150,150}; // starting PWM values
+float targetRPM[3] = {100, 100, 100};    // desired RPM for each motor
+int pwmValue[3] = {150,150,150};         // starting PWM values
 
 const int COUNTS_PER_REV = 360;
-void encoderISR0() {
+int dir = 0;
+
+// === encoder ISRs ===
+void IRAM_ATTR encoderISR0() {
   int a = digitalRead(encA[0]);
   int b = digitalRead(encB[0]);
   if (a == b) encoderCount[0]++;
   else encoderCount[0]--;
 }
 
-void encoderISR1() {
+void IRAM_ATTR encoderISR1() {
   int a = digitalRead(encA[1]);
   int b = digitalRead(encB[1]);
   if (a == b) encoderCount[1]++;
   else encoderCount[1]--;
 }
 
-void encoderISR2() {
+void IRAM_ATTR encoderISR2() {
   int a = digitalRead(encA[2]);
   int b = digitalRead(encB[2]);
   if (a == b) encoderCount[2]++;
   else encoderCount[2]--;
 }
 
-//attach in setup
+// === setup ===
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
 
-  for (int i=0;i<3;i++){
+  for (int i = 0; i < 3; i++) {
     pinMode(in1[i], OUTPUT);
     pinMode(in2[i], OUTPUT);
     pinMode(en[i], OUTPUT);
@@ -47,114 +52,128 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(encA[0]), encoderISR0, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encA[1]), encoderISR1, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encA[2]), encoderISR2, CHANGE);
+
+  Serial.println("Enter dir 1=FWD 2=BWD 3=RIGHT 4=LEFT 5=CW 6=CCW:");
 }
 
-//final 
+// === loop ===
 void loop() {
-  switch (dir){
-    case 1: //forward
-        digitalWrite(in1[0], HIGH);
-        digitalWrite(in2[0], LOW);
-        analogWrite(en[0], 255); //CLOCKWISE
+  if (Serial.available()) {
+    dir = Serial.parseInt();
+  }
 
-        digitalWrite(in1[1], LOW);
-        digitalWrite(in2[1], LOW);
-        analogWrite(en[1], 0); //head motor
+  switch (dir) {
+    case 1: // forward
+      digitalWrite(in1[0], HIGH);
+      digitalWrite(in2[0], LOW);
+      analogWrite(en[0], 255); // CLOCKWISE
 
-        digitalWrite(in1[2], LOW);
-        digitalWrite(in2[2], HIGH);
-        analogWrite(en[2], 255); //ANTICLOCK
-		break;
-    
-    case 2: //backward
-        digitalWrite(in1[0], LOW);
-        digitalWrite(in2[0], HIGH);
-        analogWrite(en[0], 255); //ANTICLOCK
+      digitalWrite(in1[1], LOW);
+      digitalWrite(in2[1], LOW);
+      analogWrite(en[1], 0); // head motor
 
-        digitalWrite(in1[1], LOW);
-        digitalWrite(in2[1], LOW);
-        analogWrite(en[1], 0); //head motor
+      digitalWrite(in1[2], LOW);
+      digitalWrite(in2[2], HIGH);
+      analogWrite(en[2], 255); // ANTICLOCK
+      break;
 
-        digitalWrite(in1[2], HIGH);
-        digitalWrite(in2[2], LOW);
-        analogWrite(en[2], 255); //CLOCK
-		break;
-    
-    case 3: //right
-        digitalWrite(in1, HGIH);
-        digitalWrite(in2, LOW);
-        analogWrite(enA, 255);
+    case 2: // backward
+      digitalWrite(in1[0], LOW);
+      digitalWrite(in2[0], HIGH);
+      analogWrite(en[0], 255); // ANTICLOCK
 
-        digitalWrite(in3, HIGH);
-        digitalWrite(in4, LOW);
-        analogWrite(enB, 255);
+      digitalWrite(in1[1], LOW);
+      digitalWrite(in2[1], LOW);
+      analogWrite(en[1], 0); // head motor
 
-        digitalWrite(in5, HIGH);
-        digitalWrite(in6, LOW);
-        analogWrite(enC, 255);
-		break;
-    
-    case 4: //left
-        digitalWrite(in1, LOW);
-        digitalWrite(in2, HIGH);
-        analogWrite(enA, 255);
+      digitalWrite(in1[2], HIGH);
+      digitalWrite(in2[2], LOW);
+      analogWrite(en[2], 255); // CLOCK
+      break;
 
-        digitalWrite(in3, LOW);
-        digitalWrite(in4, HIGH);
-        analogWrite(enB, 255);
+    case 3: // right (fill with your logic)
+      digitalWrite(in1[0], HIGH);
+      digitalWrite(in2[0], LOW);
+      analogWrite(en[0], 255);
 
-        digitalWrite(in5, LOW);
-        digitalWrite(in6, HIGH);
-        analogWrite(enC, 255);
-		break;
-    
-    case 5: //clocckwise
-    	digitalWrite(in1[0], HIGH);
-        digitalWrite(in2[0], LOW);
-        analogWrite(en[0], 255);
+      digitalWrite(in1[1], HIGH);
+      digitalWrite(in2[1], LOW);
+      analogWrite(en[1], 255);
 
-        digitalWrite(in1[1], LOW);
-        digitalWrite(in2[1], HIGH);
-        analogWrite(en[1], 0);
+      digitalWrite(in1[2], HIGH);
+      digitalWrite(in2[2], LOW);
+      analogWrite(en[2], 255);
+      break;
 
-        digitalWrite(in1[2], HIGH);
-        digitalWrite(in2[2], LOW);
-        analogWrite(en[2], 255);
-		break;
+    case 4: // left
+      digitalWrite(in1[0], LOW);
+      digitalWrite(in2[0], HIGH);
+      analogWrite(en[0], 255);
 
-    case 6:
-    	digitalWrite(in1[0], LOW);
-        digitalWrite(in2[0], HIGH);
-        analogWrite(en[0], 255);
+      digitalWrite(in1[1], LOW);
+      digitalWrite(in2[1], HIGH);
+      analogWrite(en[1], 255);
 
-        digitalWrite(in1[1], HIGH);
-        digitalWrite(in2[1], LOW);
-        analogWrite(en[1], 0);
+      digitalWrite(in1[2], LOW);
+      digitalWrite(in2[2], HIGH);
+      analogWrite(en[2], 255);
+      break;
 
-        digitalWrite(in1[2], LOW);
-        digitalWrite(in2[2], HIGH);
-        analogWrite(en[2], 255);
-}
+    case 5: // clockwise
+      digitalWrite(in1[0], HIGH);
+      digitalWrite(in2[0], LOW);
+      analogWrite(en[0], 255);
 
-  static unsigned long lastTime=0;
-  if (millis()-lastTime >= 100) {
-    lastTime=millis();
-    for (int i=0;i<3;i++){
+      digitalWrite(in1[1], LOW);
+      digitalWrite(in2[1], HIGH);
+      analogWrite(en[1], 0);
+
+      digitalWrite(in1[2], HIGH);
+      digitalWrite(in2[2], LOW);
+      analogWrite(en[2], 255);
+      break;
+
+    case 6: // counter-clockwise
+      digitalWrite(in1[0], LOW);
+      digitalWrite(in2[0], HIGH);
+      analogWrite(en[0], 255);
+
+      digitalWrite(in1[1], HIGH);
+      digitalWrite(in2[1], LOW);
+      analogWrite(en[1], 0);
+
+      digitalWrite(in1[2], LOW);
+      digitalWrite(in2[2], HIGH);
+      analogWrite(en[2], 255);
+      break;
+
+    default:
+      // stop all
+      for (int i = 0; i < 3; i++) analogWrite(en[i], 0);
+      break;
+  }
+
+  // RPM calculation and simple control
+  static unsigned long lastTime = 0;
+  if (millis() - lastTime >= 100) {
+    lastTime = millis();
+    for (int i = 0; i < 3; i++) {
       noInterrupts();
-      long count=encoderCount[i];
-      encoderCount[i]=0;
+      long count = encoderCount[i];
+      encoderCount[i] = 0;
       interrupts();
 
-      float cps = count*10.0;
-      float rpm = (cps/COUNTS_PER_REV)*60.0;
-      float error = targetRPM[i]-rpm;
-      pwmValue[i] += error*0.5;
-      if (pwmValue[i]>255) pwmValue[i]=255;
-      if (pwmValue[i]<0) pwmValue[i]=0;
+      float cps = count * 10.0;
+      float rpm = (cps / COUNTS_PER_REV) * 60.0;
+      float error = targetRPM[i] - rpm;
+      pwmValue[i] += error * 0.5;
+      if (pwmValue[i] > 255) pwmValue[i] = 255;
+      if (pwmValue[i] < 0) pwmValue[i] = 0;
 
-      Serial.print("Motor ");Serial.print(i);Serial.print(" RPM:");
+      Serial.print("Motor ");
+      Serial.print(i);
+      Serial.print(" RPM:");
       Serial.println(rpm);
     }
   }
 }
-
