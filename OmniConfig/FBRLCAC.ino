@@ -1,72 +1,94 @@
-// === Pin assignments for ESP32 + Cytron ===
-const int pwmPin[3] = {32, 25, 23}; // M1, M2, M3 PWM
-const int dirPin[3] = {33, 26, 22}; // M1, M2, M3 DIR
+// ESP32 Devkit V1 + Cytron Motor Drivers (PWM + DIR)
 
-// === PWM settings ===
-const int freq = 20000;     // 20 kHz
-const int resolution = 10;  // 0–1023
-int pwmValue[3] = {500, 500, 500}; // starting PWM for all motors
+// Pins
+const int pwmPin[3] = {32, 25, 23}; // PWM for M1, M2, M3
+const int dirPin[3] = {33, 26, 22}; // DIR for M1, M2, M3
+
+// LEDC channels (must be unique 0–15)
+const int pwmChannel[3] = {0, 1, 2};
+const int pwmFreq = 20000;    // 20kHz (silent)
+const int pwmResolution = 8;  // 8-bit (0-255)
+
+// Speed values for each motor (0–255)
+int speedVal[3] = {255, 255, 255};  // default max
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Enter direction: 1-forward 2-backward 3-right 4-left 5-clockwise 6-anticlockwise 0-stop");
+  Serial.println("ESP32 OmniBot Ready");
+  Serial.println("Enter direction: 1=Fwd, 2=Bwd, 3=Right, 4=Left, 5=CW, 6=CCW");
 
-  // Configure PWM + pins
+  // Setup pins + LEDC PWM
   for (int i = 0; i < 3; i++) {
-    ledcSetup(i, freq, resolution);       // channel i
-    ledcAttachPin(pwmPin[i], i);          // attach pin to channel
-    pinMode(dirPin[i], OUTPUT);           // direction pin as output
+    pinMode(dirPin[i], OUTPUT);
+    ledcSetup(pwmChannel[i], pwmFreq, pwmResolution);
+    ledcAttachPin(pwmPin[i], pwmChannel[i]);
+    ledcWrite(pwmChannel[i], 0); // start off
   }
 }
 
 void loop() {
-  if (Serial.available() > 0) {
+  // wait for serial input
+  if (Serial.available()) {
     int dir = Serial.parseInt();
-    movement(dir);
+    Serial.print("Command received: ");
+    Serial.println(dir);
+    moveRobot(dir);
   }
 }
 
-void setMotor(int motor, bool dir, int pwm) {
-  digitalWrite(dirPin[motor], dir);  // HIGH=one direction, LOW=other
-  ledcWrite(motor, pwm);             // write PWM duty 0–1023
+// Smooth fade to speedVal
+void setMotor(int motor, bool forward, int speed) {
+  digitalWrite(dirPin[motor], forward ? HIGH : LOW);
+  // smooth ramp to target
+  ledcWriteTone(pwmChannel[motor], 0); // ensure no tone
+  ledcWrite(pwmChannel[motor], speed); // direct write (instant)
+  Serial.print("Motor "); Serial.print(motor);
+  Serial.print(forward ? " FWD " : " REV ");
+  Serial.print(" speed=");
+  Serial.println(speed);
 }
 
-void movement(int dir) {
+void moveRobot(int dir) {
   switch (dir) {
-    case 1: // forward: m1 CW, m2 off, m3 CCW
-      setMotor(0, HIGH, pwmValue[0]);
-      setMotor(1, LOW, 0);
-      setMotor(2, LOW, pwmValue[2]);
+    case 1: // Forward
+      setMotor(0, true,  speedVal[0]);
+      setMotor(1, false, 0);
+      setMotor(2, true,  speedVal[2]);
       break;
-    case 2: // backward: m1 CCW, m2 off, m3 CW
-      setMotor(0, LOW, pwmValue[0]);
-      setMotor(1, LOW, 0);
-      setMotor(2, HIGH, pwmValue[2]);
+    case 2: // Backward
+      setMotor(0, false, speedVal[0]);
+      setMotor(1, false, 0);
+      setMotor(2, false, speedVal[2]);
       break;
-    case 3: // right: all CW
-      setMotor(0, HIGH, pwmValue[0]);
-      setMotor(1, HIGH, pwmValue[1]);
-      setMotor(2, HIGH, pwmValue[2]);
+    case 3: // Right
+      setMotor(0, false, speedVal[0]);
+      setMotor(1, false, 0);
+      setMotor(2, false, speedVal[2]);
       break;
-    case 4: // left: all CCW
-      setMotor(0, LOW, pwmValue[0]);
-      setMotor(1, LOW, pwmValue[1]);
-      setMotor(2, LOW, pwmValue[2]);
+    case 4: // Left
+      setMotor(0, true,  speedVal[0]);
+      setMotor(1, false, 0);
+      setMotor(2, true,  speedVal[2]);
       break;
-    case 5: // clockwise
-      setMotor(0, HIGH, pwmValue[0]);
-      setMotor(1, LOW, pwmValue[1]);
-      setMotor(2, HIGH, pwmValue[2]);
+    case 5: // Clockwise
+      setMotor(0, false, speedVal[0]);
+      setMotor(1, true,  speedVal[1]);
+      setMotor(2, false, speedVal[2]);
       break;
-    case 6: // anticlockwise
-      setMotor(0, LOW, pwmValue[0]);
-      setMotor(1, HIGH, pwmValue[1]);
-      setMotor(2, LOW, pwmValue[2]);
+    case 6: // Counter-Clockwise
+      setMotor(0, true,  speedVal[0]);
+      setMotor(1, false, speedVal[1]);
+      setMotor(2, true,  speedVal[2]);
       break;
-    default: // stop all
-      setMotor(0, HIGH, 0);
-      setMotor(1, HIGH, 0);
-      setMotor(2, HIGH, 0);
+    default: // stop
+      stopAll();
       break;
   }
+}
+
+void stopAll() {
+  for (int i = 0; i < 3; i++) {
+    ledcWrite(pwmChannel[i], 0);
+  }
+  Serial.println("Motors stopped");
 }
