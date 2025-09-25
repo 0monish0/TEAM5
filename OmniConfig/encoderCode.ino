@@ -2,19 +2,14 @@
 int in1[3] = {2, 4, 6};  // IN1 for motor1, motor2, motor3
 int in2[3] = {3, 5, 7};  // IN2
 int en[3]  = {9, 10, 11}; // PWM pins
-
-// Encoder channel A pins (must be interrupt capable on Uno)
-int encA[3] = {18, 19, 20}; // if using a Mega; on Uno you only have 2 ints
-// Encoder channel B pins
-int encB[3] = {22, 23, 24}; // any digital pins
+int encA[3] = {18, 19, 20};
+int encB[3] = {22, 23, 24};
 
 volatile long encoderCount[3] = {0,0,0}; // updated in ISRs
 float targetRPM[3] = {100, 100, 100}; // desired RPM for each motor
 int pwmValue[3] = {150,150,150}; // starting PWM values
 
-const int COUNTS_PER_REV = 360; // adjust to your encoder spec
-
-//encoder ISR functions
+const int COUNTS_PER_REV = 360;
 void encoderISR0() {
   int a = digitalRead(encA[0]);
   int b = digitalRead(encB[0]);
@@ -56,12 +51,90 @@ void setup() {
 
 //final 
 void loop() {
-  // set direction (forward example)
-  for(int i=0;i<3;i++){
-    digitalWrite(in1[i], HIGH);
-    digitalWrite(in2[i], LOW);
-    analogWrite(en[i], pwmValue[i]);
-  }
+  switch (dir){
+    case 1: 
+        digitalWrite(in1[0], HIGH);
+        digitalWrite(in2[0], LOW);
+        analogWrite(en[0], 255);
+
+        digitalWrite(in1[1], LOW);
+        digitalWrite(in2[1], LOW);
+        analogWrite(en[1], 0);
+
+        digitalWrite(in1[2], HIGH);
+        digitalWrite(in2[2], LOW);
+        analogWrite(en[2], 255);
+		break;
+    
+    case 2: 
+        digitalWrite(in1[0], LOW);
+        digitalWrite(in2[0], HIGH);
+        analogWrite(en[0], 255);
+
+        digitalWrite(in1[1], LOW);
+        digitalWrite(in2[1], LOW);
+        analogWrite(en[1], 0);
+
+        digitalWrite(in1[2], LOW);
+        digitalWrite(in2[2], HIGH);
+        analogWrite(en[2], 255);
+		break;
+    
+    case 3: //to code
+        digitalWrite(in1, LOW);
+        digitalWrite(in2, HIGH);
+        analogWrite(enA, 255*(23/25));
+
+        digitalWrite(in3, LOW);
+        digitalWrite(in4, LOW);
+        analogWrite(enB, 0);
+
+        digitalWrite(in5, LOW);
+        digitalWrite(in6, HIGH);
+        analogWrite(enC, 255);
+		break;
+    
+    case 4: //to code
+        digitalWrite(in1, LOW);
+        digitalWrite(in2, HIGH);
+        analogWrite(enA, 255*(23/25));
+
+        digitalWrite(in3, LOW);
+        digitalWrite(in4, LOW);
+        analogWrite(enB, 0);
+
+        digitalWrite(in5, LOW);
+        digitalWrite(in6, HIGH);
+        analogWrite(enC, 255);
+		break;
+    
+    case 5:
+    	  digitalWrite(in1[0], LOW);
+        digitalWrite(in2[0], HIGH);
+        analogWrite(en[0], 255);
+
+        digitalWrite(in1[1], LOW);
+        digitalWrite(in2[1], HIGH);
+        analogWrite(en[1], 0);
+
+        digitalWrite(in1[2], LOW);
+        digitalWrite(in2[2], HIGH);
+        analogWrite(en[2], 255);
+		break;
+
+    case 6:
+    	digitalWrite(in1[0], HIGH);
+        digitalWrite(in2[0], LOW);
+        analogWrite(en[0], 255);
+
+        digitalWrite(in1[1], HIGH);
+        digitalWrite(in2[1], LOW);
+        analogWrite(en[1], 0);
+
+        digitalWrite(in1[2], HIGH);
+        digitalWrite(in2[2], LOW);
+        analogWrite(en[2], 255);
+}
 
   static unsigned long lastTime=0;
   if (millis()-lastTime >= 100) {
@@ -72,12 +145,10 @@ void loop() {
       encoderCount[i]=0;
       interrupts();
 
-      float cps = count*10.0; // counts per second
+      float cps = count*10.0;
       float rpm = (cps/COUNTS_PER_REV)*60.0;
-
-      // simple proportional control (replace with PID for smoother)
       float error = targetRPM[i]-rpm;
-      pwmValue[i] += error*0.5; // Kp=0.5 example
+      pwmValue[i] += error*0.5;
       if (pwmValue[i]>255) pwmValue[i]=255;
       if (pwmValue[i]<0) pwmValue[i]=0;
 
