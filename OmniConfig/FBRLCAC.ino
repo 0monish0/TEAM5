@@ -1,118 +1,83 @@
-// Motor ORANGE: A (L298N #1); let less rpm motor be A
-int in1 = 8;
-int in2 = 10;
-int enA = 9;
+// === Pin assignments for ESP32 + Cytron ===
+const int pwmPin[3] = {32, 25, 23}; // M1, M2, M3 PWM
+const int dirPin[3] = {33, 26, 22}; // M1, M2, M3 DIR
 
-// Motor YELLOW: B (L298N #1)
-int in3 = 2;
-int in4 = 4;
-int enB = 3;
+// === PWM settings ===
+const int freq = 20000;     // 20 kHz
+const int resolution = 10;  // 0–1023
+int pwmValue[3] = {500, 500, 500}; // starting PWM for all motors
 
-// Motor RED: C (L298N #2)
-int in5 = 6;
-int in6 = 7;
-int enC = 5;
-
+// === Setup ===
 void setup() {
-  pinMode(in1, OUTPUT); pinMode(in2, OUTPUT);
-  pinMode(in3, OUTPUT); pinMode(in4, OUTPUT);
-  pinMode(in5, OUTPUT); pinMode(in6, OUTPUT);
-  
-  Serial.begin(9600);
-  Serial.println("Enter the direction; 1- forward; 2- backward; 3- right; 4- left; 5- clockwise; 6- anticlockwise ");
-  
-    while(Serial.available()==0){
+  Serial.begin(115200);
+  Serial.println("Enter direction: 1-forward 2-backward 3-right 4-left 5-clockwise 6-anticlockwise 0-stop");
+
+  // Attach PWM channels and configure pins
+  for (int i = 0; i < 3; i++) {
+    ledcSetup(i, freq, resolution);
+    ledcAttachPin(pwmPin[i], i);   // each motor = its own channel
+    pinMode(dirPin[i], OUTPUT);
   }
-     	 int direction = Serial.parseInt();
-    Serial.println(direction);
-  
-  movement(direction);
 }
 
+// === Main loop ===
+void loop() {
+  if (Serial.available() > 0) {
+    int dir = Serial.parseInt();
+    movement(dir);
+  }
+}
+
+// === Helper: set motor direction and speed ===
+void setMotor(int motor, bool dir, int pwm) {
+  digitalWrite(dirPin[motor], dir);  // HIGH = one direction, LOW = other
+  ledcWrite(motor, pwm);             // 0–1023
+}
+
+// === Movement patterns (your requested directions) ===
 void movement(int dir) {
-  switch (dir){
-    case 1: 
-        digitalWrite(in1, HIGH);
-        digitalWrite(in2, LOW);
-        analogWrite(enA, 255*(23/25));
+  switch (dir) {
+    case 1: // forward: m1 CW, m2 off, m3 CCW
+      setMotor(0, HIGH, pwmValue[0]); // M1 CW
+      setMotor(1, LOW, 0);            // M2 off
+      setMotor(2, LOW, pwmValue[2]);  // M3 CCW
+      break;
 
-        digitalWrite(in3, LOW);
-        digitalWrite(in4, LOW);
-        analogWrite(enB, 0);
+    case 2: // backward: m1 CCW, m2 off, m3 CW
+      setMotor(0, LOW, pwmValue[0]);  // M1 CCW
+      setMotor(1, LOW, 0);            // M2 off
+      setMotor(2, HIGH, pwmValue[2]); // M3 CW
+      break;
 
-        digitalWrite(in5, HIGH);
-        digitalWrite(in6, LOW);
-        analogWrite(enC, 255);
-		break;
-    
-    case 2: 
-        digitalWrite(in1, LOW);
-        digitalWrite(in2, HIGH);
-        analogWrite(enA, 255*(23/25));
+    case 3: // right: m1 CW, m2 CW, m3 CW
+      setMotor(0, HIGH, pwmValue[0]);
+      setMotor(1, HIGH, pwmValue[1]);
+      setMotor(2, HIGH, pwmValue[2]);
+      break;
 
-        digitalWrite(in3, LOW);
-        digitalWrite(in4, LOW);
-        analogWrite(enB, 0);
+    case 4: // left: m1 CCW, m2 CCW, m3 CCW
+      setMotor(0, LOW, pwmValue[0]);
+      setMotor(1, LOW, pwmValue[1]);
+      setMotor(2, LOW, pwmValue[2]);
+      break;
 
-        digitalWrite(in5, LOW);
-        digitalWrite(in6, HIGH);
-        analogWrite(enC, 255);
-		break;
-    
-    case 3: //to code
-        digitalWrite(in1, LOW);
-        digitalWrite(in2, HIGH);
-        analogWrite(enA, 255*(23/25));
+    case 5: // clockwise: m1 CW, m2 CCW, m3 CW
+      setMotor(0, HIGH, pwmValue[0]);
+      setMotor(1, LOW, pwmValue[1]);
+      setMotor(2, HIGH, pwmValue[2]);
+      break;
 
-        digitalWrite(in3, LOW);
-        digitalWrite(in4, LOW);
-        analogWrite(enB, 0);
+    case 6: // anticlockwise: m1 CCW, m2 CW, m3 CCW
+      setMotor(0, LOW, pwmValue[0]);
+      setMotor(1, HIGH, pwmValue[1]);
+      setMotor(2, LOW, pwmValue[2]);
+      break;
 
-        digitalWrite(in5, LOW);
-        digitalWrite(in6, HIGH);
-        analogWrite(enC, 255);
-		break;
-    
-    case 4: //to code
-        digitalWrite(in1, LOW);
-        digitalWrite(in2, HIGH);
-        analogWrite(enA, 255*(23/25));
-
-        digitalWrite(in3, LOW);
-        digitalWrite(in4, LOW);
-        analogWrite(enB, 0);
-
-        digitalWrite(in5, LOW);
-        digitalWrite(in6, HIGH);
-        analogWrite(enC, 255);
-		break;
-    
-    case 5:
-    	  digitalWrite(in1, LOW);
-        digitalWrite(in2, HIGH);
-        analogWrite(enA, 255*(23/25));
-
-        digitalWrite(in3, LOW);
-        digitalWrite(in4, HIGH);
-        analogWrite(enB, 0);
-
-        digitalWrite(in5, LOW);
-        digitalWrite(in6, HIGH);
-        analogWrite(enC, 255);
-		break;
-
-    case 6:
-    	digitalWrite(in1, HIGH);
-        digitalWrite(in2, LOW);
-        analogWrite(enA, 255*(23/25));
-
-        digitalWrite(in3, HIGH);
-        digitalWrite(in4, LOW);
-        analogWrite(enB, 0);
-
-        digitalWrite(in5, HIGH);
-        digitalWrite(in6, LOW);
-        analogWrite(enC, 255);
+    case 0: // stop all
+    default:
+      setMotor(0, HIGH, 0);
+      setMotor(1, HIGH, 0);
+      setMotor(2, HIGH, 0);
+      break;
+  }
 }
-//one with low rpm; send pwm* 230.0/250.0 into that motor. 
-//see the speed and decide respective pwm. 
