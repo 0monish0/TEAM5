@@ -1,16 +1,16 @@
 import websocket
 import time
 
-ESP32_IP = "10.194.52.156"
+ESP32_IP = "192.168.137.10"
 ESP32_PORT = 81
 
 def on_open(ws):
     print("Connected to ESP32")
-    for i in range(10):
-        msg = f"Hello ESP32! {i}"
+    for i in range(7):
+        msg = f"{i}"
         ws.send(msg)
         print(f"Sent: {msg}")
-        time.sleep(1)
+        time.sleep(7)
     ws.close()
 
 def on_message(ws, message):

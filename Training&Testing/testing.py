@@ -9,7 +9,6 @@ import websocket
 ESP32_IP = "192.168.137.10"
 ESP32_PORT = 81
 ws = websocket.WebSocket()
-
 try:
     ws.connect(f"ws://{ESP32_IP}:{ESP32_PORT}/")
     print("✅ Connected to ESP32")
@@ -27,7 +26,6 @@ cap = cv2.VideoCapture(video_url)
 # ===== Smoothing histories =====
 history_len = 5
 cx_history = deque(maxlen=history_len)
-cy_history = deque(maxlen=history_len)
 instruction_history = deque(maxlen=history_len)
 
 # ===== Red circle detection =====
@@ -37,50 +35,42 @@ def detect_red_circles(frame, x1, y1, x2, y2):
         return None, None, None
 
     hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-    lower_red1 = np.array([0, 100, 80])
+    lower_red1 = np.array([0, 120, 70])
     upper_red1 = np.array([10, 255, 255])
-    lower_red2 = np.array([170, 100, 80])
+    lower_red2 = np.array([170, 120, 70])
     upper_red2 = np.array([180, 255, 255])
     mask = cv2.bitwise_or(cv2.inRange(hsv, lower_red1, upper_red1),
                           cv2.inRange(hsv, lower_red2, upper_red2))
-    mask = cv2.medianBlur(mask, 5)
+    # Morphological filtering to remove noise
+    kernel = np.ones((3, 3), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
         return None, None, None
 
-    box_cx, box_cy = (x1 + x2) // 2, (y1 + y2) // 2
-    best_circle = None
-    best_score = -1
-    best_area = 0
+    # Only largest contour
+    c = max(contours, key=cv2.contourArea)
+    area = cv2.contourArea(c)
+    if area < 50:  # smaller min area
+        return None, None, None
 
-    for c in contours:
-        area = cv2.contourArea(c)
-        if area < 100:
-            continue
-        (cx, cy), radius = cv2.minEnclosingCircle(c)
-        cx, cy, radius = int(cx), int(cy), int(radius)
-        cx_abs, cy_abs = cx + x1, cy + y1
-        dist = np.hypot(cx_abs - box_cx, cy_abs - box_cy)
-        score = (area / 100.0) - (dist / 5.0)
-        if score > best_score:
-            best_score = score
-            best_circle = (cx_abs, cy_abs, radius)
-            best_area = area
+    (cx, cy), radius = cv2.minEnclosingCircle(c)
+    cx_abs, cy_abs = int(cx) + x1, int(cy) + y1
 
-    if best_circle:
-        cx_full, cy_full, r = best_circle
-        cv2.circle(frame, (cx_full, cy_full), r, (0, 0, 255), 2)
-        cv2.circle(frame, (cx_full, cy_full), 5, (255, 0, 255), -1)
-        cv2.putText(frame, f"Area: {int(best_area)}", (cx_full - 40, cy_full - 20),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
-        return cx_full, cy_full, best_area
-    return None, None, None
+    cv2.circle(frame, (cx_abs, cy_abs), int(radius), (0, 0, 255), 2)
+    cv2.circle(frame, (cx_abs, cy_abs), 5, (255, 0, 255), -1)
+    return cx_abs, cy_abs, area
 
 # ===== Main loop =====
 prev_time = time.time()
 red_detected_stable_frames = 0
-red_stability_threshold = 3  # require 3 consecutive frames
+red_stability_threshold = 2  # fewer frames for faster response
+last_send_time = 0
+send_interval = 0.25  # seconds
+last_command_sent = None
+hysteresis = 40  # deadzone around center
 
 while True:
     ret, frame = cap.read()
@@ -110,13 +100,11 @@ while True:
                 x1, y1 = max(0, x1), max(0, y1)
                 x2, y2 = min(frame_w, x2), min(frame_h, y2)
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
-                cv2.putText(frame, "BOX", (x1, y1 - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
                 box_cx, box_cy = (x1 + x2) // 2, (y1 + y2) // 2
                 red_cx, red_cy, area_red = detect_red_circles(frame, x1, y1, x2, y2)
 
     # Decide which target to use
-    if red_cx is not None and area_red > 300:
+    if red_cx is not None and area_red > 50:
         red_detected_stable_frames += 1
         if red_detected_stable_frames >= red_stability_threshold:
             target_cx, target_cy = red_cx, red_cy
@@ -136,44 +124,39 @@ while True:
     # Smooth target position
     if target_cx is not None:
         cx_history.append(target_cx)
-        cy_history.append(target_cy)
         target_cx_s = int(np.mean(cx_history))
-        target_cy_s = int(np.mean(cy_history))
 
-        tolerance = frame_w // 10
-        if target_cx_s < frame_center_x - tolerance:
+        # Hysteresis deadzone
+        if target_cx_s < frame_center_x - hysteresis:
             move_instruction = "MOVE LEFT"
             send_val = 4
-        elif target_cx_s > frame_center_x + tolerance:
+        elif target_cx_s > frame_center_x + hysteresis:
             move_instruction = "MOVE RIGHT"
             send_val = 3
         else:
             move_instruction = "FORWARD"
             send_val = 1
 
+        # Stop if red circle very close
         if target_used == "RED CIRCLE" and area_red is not None and area_red > 5000:
             move_instruction = "STOP"
             send_val = 0
 
-        # Send command to ESP32
-        if ws:
+        # Send command to ESP32 if changed & after interval
+        now = time.time()
+        if ws and (send_val != last_command_sent) and (now - last_send_time > send_interval):
             try:
                 ws.send(str(send_val))
+                last_send_time = now
+                last_command_sent = send_val
             except Exception as e:
                 print("WebSocket send failed:", e)
 
-        cv2.circle(frame, (target_cx_s, target_cy_s), 7, (0, 255, 255), -1)
+        cv2.circle(frame, (target_cx_s, target_cy), 7, (0, 255, 255), -1)
         cv2.putText(frame, f"Target: {target_used}", (30, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2)
-        if target_used == "RED CIRCLE" and area_red is not None:
-            distance_estimate = 10000 / (area_red + 1)
-        elif target_used == "BOX" and box_cx is not None:
-            distance_estimate = 10000 / ((x2 - x1) * (y2 - y1) + 1)
-        if distance_estimate:
-            cv2.putText(frame, f"Distance est: {int(distance_estimate)}", (30, 80),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
 
-    # Smooth instructions
+    # Smooth instructions for display
     instruction_history.append(move_instruction)
     move_instruction_smooth = Counter(instruction_history).most_common(1)[0][0]
     cv2.putText(frame, f"Move: {move_instruction_smooth}", (30, 120),
