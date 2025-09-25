@@ -17,8 +17,8 @@ const int freq = 20000;
 const int resolution = 10; // 0–1023
 
 // === Speed control ===
-const int COUNTS_PER_REV = 360; // adjust to your encoder
-float targetRPM[3] = {100, 100, 100}; // desired rpm per motor
+const int COUNTS_PER_REV = 600;
+float targetRPM[3] = {230, 230, 230}; // desired rpm per motor
 int pwmValue[3] = {500, 500, 500};    // start PWM (0–1023)
 
 // === Direction map helper ===
