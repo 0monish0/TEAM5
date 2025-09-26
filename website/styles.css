@@ -1,0 +1,167 @@
+:root {
+    --sambed: #3699ea;
+    --siesed: #9a3cea;
+    --spaced: #ffd153;
+    --mcsocd: #48ba78;
+    --mech: #35649a;
+    --elec: #af3434;
+    --code: #267c6c;
+    --light: #eef2fc;
+    --accent: #18366b;
+    --neutral: #222831;
+}
+
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--light);
+    margin: 0;
+    padding: 0;
+    color: var(--neutral);
+}
+header {
+    background: var(--accent);
+    color: #fff;
+    text-align: center;
+    padding: 2.8rem 0 1.2rem 0;
+    box-shadow: 0 2px 18px rgba(40,56,140,0.19);
+}
+.header-content h1 { margin-bottom: 8px; letter-spacing: 2px;}
+.header-content p { font-size: 1.2rem; opacity: .88;}
+main {
+    max-width: 1160px;
+    margin: 38px auto 80px auto;
+    background: #fff;
+    border-radius: 18px;
+    padding: 38px 28px;
+    box-shadow: 0 7px 36px rgba(60,47,97,0.14);
+}
+h2 {
+    color: var(--accent);
+    border-bottom: 3px solid var(--accent);
+    display: inline-block;
+    padding-bottom: 3px;
+    margin-bottom: 16px;
+}
+section { margin-bottom: 52px; }
+
+.domains {
+    display: flex; 
+    flex-wrap: wrap; 
+    gap: 28px;
+    margin-bottom: 8px;
+    justify-content: space-between;
+}
+.domain {
+    flex: 1 1 230px;
+    padding: 18px 14px 17px 14px;
+    border-radius: 13px;
+    box-shadow: 0 2.5px 11px rgba(45,59,120, .11);
+    background: #fafdff;
+}
+.domain-sambed { border: 2px solid var(--sambed); }
+.domain-siesed { border: 2px solid var(--siesed);}
+.domain-spaced { border: 2px solid var(--spaced);}
+.domain-mcsocd { border: 2px solid var(--mcsocd);}
+.domain h3 {
+    border-radius: 9px;
+    padding: 7px 0;
+    color: #fff;
+    text-align: center;
+    margin-top: -18px;
+    margin-bottom: 11px;
+    font-size: 1.15rem;
+    letter-spacing: 1px;
+}
+.domain-sambed h3 { background: var(--sambed);}
+.domain-siesed h3 { background: var(--siesed);}
+.domain-spaced h3 { background: var(--spaced); color: #222;}
+.domain-mcsocd h3 { background: var(--mcsocd);}
+.team-grid {
+    display: flex; 
+    gap: 22px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.member {
+    background: #f3f9ff;
+    border-radius: 11px;
+    box-shadow: 0 1.8px 8px rgba(90,99,176,0.11);
+    padding: 12px 10px 16px 10px;
+    text-align: center;
+    flex: 1 1 155px;
+    min-width: 145px;
+}
+.member img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 50%;
+    margin-bottom: 10px;
+    border: 2.5px solid #b7c9f4;
+}
+.member h4 { margin-bottom: 2px; color: var(--neutral);}
+.member p { margin: 2px 0 5px 0; font-size: .98rem;}
+.desc { color: #38508a;}
+/* Contributions */
+.contributions-grid {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+}
+.contrib {
+    background: #fafeef;
+    border-radius: 11px;
+    padding: 22px 18px;
+    min-width: 220px;
+    flex: 1 1 270px;
+    box-shadow: 0 1.5px 11px rgba(31,89,43,.07);
+}
+.contrib.mechanical { border-left: 6px solid var(--mech);}
+.contrib.electrical { border-left: 6px solid var(--elec);}
+.contrib.coding { border-left: 6px solid var(--code);}
+.contrib h3 { margin-top: 0; }
+.gallery {
+    margin-top: 18px;
+}
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 17px;
+    margin-top: 10px;
+}
+.gallery-grid img {
+    width: 100%;
+    min-height: 130px;
+    border-radius: 9px;
+    box-shadow: 0 2.5px 15px rgba(92,122,179,0.12);
+    object-fit: cover;
+}
+.gallery .small {
+    font-size: .92rem; color: #7e8c8c; margin-top: 7px;
+}
+footer {
+    background: var(--accent);
+    color: #fff;
+    text-align: center;
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100vw;
+    padding: 19px 0 11px 0;
+    font-size: 1rem;
+    border-top: 2px solid #c6dbfc;
+    z-index: 100;
+}
+@media (max-width:1200px) {
+    main { padding: 10px;}
+    .domains {flex-direction: column; gap: 17px;}
+    .contributions-grid{flex-direction: column;gap:17px;}
+}
+@media (max-width:700px) {
+    main {padding: 5px;}
+    .header-content h1 {font-size:1.3rem;}
+    h2 {font-size: 1.17rem;}
+    .gallery-grid {grid-template-columns: 1fr 1fr;}
+    .member img { width: 65px; height: 65px;}
+}
