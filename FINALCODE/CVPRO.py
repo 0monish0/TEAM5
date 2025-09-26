@@ -76,7 +76,7 @@ while True:
     if not ret or frame is None:
         continue
 
-    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE) #cuz we got 
+    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE) #because of the phone orientation
     frame_h, frame_w = frame.shape[:2] 
     frame_center_x = frame_w // 2 #center finding
 
