@@ -5,62 +5,61 @@ from ultralytics import YOLO
 from collections import deque, Counter
 import websocket
 
-# ===== WebSocket settings =====
+# configuring WebSocket
 ESP32_IP = "192.168.137.10"
 ESP32_PORT = 81
-ws = websocket.WebSocket()
-try:
-    ws.connect(f"ws://{ESP32_IP}:{ESP32_PORT}/")
-    print("✅ Connected to ESP32")
+ws = websocket.WebSocket() 
+try: # to check websocket connection
+    ws.connect(f"ws://{ESP32_IP}:{ESP32_PORT}/") 
+    print("Connected to ESP32")
 except Exception as e:
-    print("❌ WebSocket connection failed:", e)
+    print("WebSocket connection failed:", e)
     ws = None
 
-# ===== Load YOLO model =====
-model = YOLO("Training&Testing/best.pt")
+model = YOLO("Training&Testing/best.pt") # loading the YOLO model
 
-# ===== Video source =====
-video_url = "http://10.194.52.27:4747/video"
-cap = cv2.VideoCapture(video_url)
+video_url = "http://10.194.52.27:4747/video" #opens the video stream from the camera in real time
+cap = cv2.VideoCapture(video_url) #openCV receives video frames to process
 
-# ===== Smoothing histories =====
 history_len = 5
-cx_history = deque(maxlen=history_len)
-instruction_history = deque(maxlen=history_len)
+cx_history = deque(maxlen=history_len) # stores the x coordinates 
+instruction_history = deque(maxlen=history_len) # stores last 5 instructions and selects the most frequent one
 
-# ===== Red circle detection =====
-def detect_red_circles(frame, x1, y1, x2, y2):
+# Red circle detection
+def detect_red_circles(frame, x1, y1, x2, y2): #coordinates of bounding box
     roi = frame[y1:y2, x1:x2]
-    if roi.size == 0:
+    if roi.size == 0: #region of interest 
         return None, None, None
 
-    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-    lower_red1 = np.array([0, 120, 70])
-    upper_red1 = np.array([10, 255, 255])
-    lower_red2 = np.array([170, 120, 70])
-    upper_red2 = np.array([180, 255, 255])
+    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV) #hue, saturation, value 
+    lower_red1 = np.array([0, 120, 70]) 
+    upper_red1 = np.array([10, 255, 255]) 
+    lower_red2 = np.array([170, 120, 70]) 
+    upper_red2 = np.array([180, 255, 255]) 
+    
     mask = cv2.bitwise_or(cv2.inRange(hsv, lower_red1, upper_red1),
-                          cv2.inRange(hsv, lower_red2, upper_red2))
-    # Morphological filtering to remove noise
-    kernel = np.ones((3, 3), np.uint8)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+                          cv2.inRange(hsv, lower_red2, upper_red2)) #making a binary mask on required region
+    
+    # Morphological filtering to remove noise: because there may be gaps due to hugh's transformation.
+    kernel = np.ones((3, 3), np.uint8) #kernel: structuring element
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel) #first erosion then dilation: removes small white specks (noise) in the red mask
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel) #first dilation then erosion: fills small black holes
 
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if not contours:
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE) #basically to create the outline
+    if not contours: #basically creates outline for number of 1s or whites. 
         return None, None, None
 
-    # Only largest contour
-    c = max(contours, key=cv2.contourArea)
+    # taking only largest contour
+    c = max(contours, key=cv2.contourArea) 
     area = cv2.contourArea(c)
     if area < 50:  # smaller min area
         return None, None, None
 
-    (cx, cy), radius = cv2.minEnclosingCircle(c)
-    cx_abs, cy_abs = int(cx) + x1, int(cy) + y1
+    (cx, cy), radius = cv2.minEnclosingCircle(c) #whatever points we have, creates the minimum circle. 
+    cx_abs, cy_abs = int(cx) + x1, int(cy) + y1 #to get the center with respect to the frame
 
-    cv2.circle(frame, (cx_abs, cy_abs), int(radius), (0, 0, 255), 2)
-    cv2.circle(frame, (cx_abs, cy_abs), 5, (255, 0, 255), -1)
+    cv2.circle(frame, (cx_abs, cy_abs), int(radius), (0, 0, 255), 2) #to create the annotation for outline
+    cv2.circle(frame, (cx_abs, cy_abs), 5, (255, 0, 255), -1) #to create annotation for center of circle
     return cx_abs, cy_abs, area
 
 # ===== Main loop =====
@@ -70,22 +69,23 @@ red_stability_threshold = 2  # fewer frames for faster response
 last_send_time = 0
 send_interval = 0.25  # seconds
 last_command_sent = None
-hysteresis = 40  # deadzone around center
+hysteresis = 40  # buffer region so its not jittery
 
 while True:
-    ret, frame = cap.read()
+    ret, frame = cap.read() #to check if frame is taken or not
     if not ret or frame is None:
         continue
 
-    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
-    frame_h, frame_w = frame.shape[:2]
-    frame_center_x = frame_w // 2
+    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE) #cuz we got 
+    frame_h, frame_w = frame.shape[:2] 
+    frame_center_x = frame_w // 2 #center finding
 
-    move_instruction = "NO BOX DETECTED"
+    #default instruction values
+    move_instruction = "NO BOX DETECTED" 
     target_used = "NONE"
     distance_estimate = None
 
-    results = model(frame, conf=0.5, verbose=False)
+    results = model(frame, conf=0.5, verbose=False) #verbose false prevents anything random being printed in the monitor 
 
     box_cx, box_cy = None, None
     red_cx, red_cy = None, None
@@ -94,14 +94,14 @@ while True:
     # Process YOLO boxes
     for result in results:
         for box, cls_id in zip(result.boxes.xyxy, result.boxes.cls):
-            label_name = model.names[int(cls_id)]
+            label_name = model.names[int(cls_id)] 
             if label_name == "BOX":
-                x1, y1, x2, y2 = map(int, box)
-                x1, y1 = max(0, x1), max(0, y1)
-                x2, y2 = min(frame_w, x2), min(frame_h, y2)
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
-                box_cx, box_cy = (x1 + x2) // 2, (y1 + y2) // 2
-                red_cx, red_cy, area_red = detect_red_circles(frame, x1, y1, x2, y2)
+                x1, y1, x2, y2 = map(int, box) 
+                x1, y1 = max(0, x1), max(0, y1) #to reduce error
+                x2, y2 = min(frame_w, x2), min(frame_h, y2) #so bounding box doesnt go out of frame
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2) 
+                box_cx, box_cy = (x1 + x2) // 2, (y1 + y2) // 2  #center of counding box
+                red_cx, red_cy, area_red = detect_red_circles(frame, x1, y1, x2, y2)  #center of red circle
 
     # Decide which target to use
     if red_cx is not None and area_red > 50:
@@ -164,8 +164,8 @@ while True:
 
     # FPS display
     curr_time = time.time()
-    fps = 1 / (curr_time - prev_time)
-    prev_time = curr_time
+    fps = 1 / (curr_time - prev_time) # curr_time - prev_time = total time taken to process the time
+    prev_time = curr_time 
     cv2.putText(frame, f"FPS: {int(fps)}", (30, frame_h - 30),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
 
